@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "787892054819",
+    "firebase_url": "https://sensores-b8e07.firebaseio.com",
+    "project_id": "sensores-b8e07",
+    "storage_bucket": "sensores-b8e07.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:787892054819:android:2519bbeb45dfb485",
+        "android_client_info": {
+          "package_name": "mx.edu.uabc.sensores"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "787892054819-mnhg72r6jde179nsvcn44b6r4mgtgcli.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBQzGEBy5sFyCwrVOIs0zvJ3Df1u2HyvA"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
