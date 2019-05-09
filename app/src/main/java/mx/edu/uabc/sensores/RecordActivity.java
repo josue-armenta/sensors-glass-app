@@ -9,37 +9,45 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.TextView;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 public class RecordActivity extends Activity implements SensorEventListener {
 
+    private static final String TAG = RecordActivity.class.getSimpleName();
+    public static final int OPEN_RECORD = 999;
     public static final String POINT_POSITION = "POINT_POSITION";
 
-    private static final int SENSOR_DELAY_MICROS = 20 * 1000; //50hz
-    private static final double TO_DEGREES = 180 / Math.PI;
+    private static final int SENSOR_DELAY = 40000;
+
+    private long accelerometer_ts = 0;
+    private long magnetometer_ts = 0;
+    private long sensors_ts = 0;
 
     private boolean recording = false;
 
     private int position;
 
     private SensorManager mSensorManager;
+    private float[] accelerometerReading = new float[3];
+    private float[] magnetometerReading = new float[3];
+
+    private final float[] rotationMatrix = new float[9];
+    private final float[] orientationAngles = new float[3];
+
     private Sensor mAccelerometerSensor;
     private Sensor mMagnetometerSensor;
-    private float[] mAccelerometerData = new float[3];
-    private float[] mMagnetometerData = new float[3];
 
     private TextView zAxisLabel;
     private TextView xAxisLabel;
@@ -58,7 +66,11 @@ public class RecordActivity extends Activity implements SensorEventListener {
         position = intent.getIntExtra(POINT_POSITION, 0);
 
         TextView pointPosition = (TextView) findViewById(R.id.pointPosition);
-        pointPosition.setText("S" + String.valueOf(position));
+
+        if (position == OPEN_RECORD)
+            pointPosition.setText(getString(R.string.open_record));
+        else
+            pointPosition.setText(getString(R.string.point_position, position));
 
         zAxisLabel = (TextView) findViewById(R.id.txtZ);
         xAxisLabel = (TextView) findViewById(R.id.txtX);
@@ -66,8 +78,10 @@ public class RecordActivity extends Activity implements SensorEventListener {
         recordingLabel = (TextView) findViewById(R.id.recording);
 
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        mAccelerometerSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        mMagnetometerSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        if (mSensorManager != null) {
+            mAccelerometerSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            mMagnetometerSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        }
     }
 
     @Override
@@ -77,29 +91,30 @@ public class RecordActivity extends Activity implements SensorEventListener {
 
             if (recording) {
 
-                File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-                File file = new File(path, "Sensors.csv");
+                File path = Environment
+                        .getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
+
+                String fileName = new SimpleDateFormat("yyyyMMddHHmmss'.csv'",
+                        Locale.getDefault()).format(new Date());
+
+                File file = new File(path, fileName);
+
                 try {
-                    boolean created = file.createNewFile();
+                    file.createNewFile();
                 } catch (IOException ignored) {
-                    //meh
                 }
 
                 try {
-                    os = new FileOutputStream(file, true);
+                    os = new FileOutputStream(file);
                 } catch (FileNotFoundException ignored) {
 
                 }
 
                 recordingLabel.setVisibility(View.VISIBLE);
+
             } else {
                 recordingLabel.setVisibility(View.INVISIBLE);
-                if (os != null)
-                    try {
-                        os.close();
-                    } catch (IOException ignored) {
-                        //meh
-                    }
+                closeFiles();
             }
 
             return true;
@@ -112,82 +127,108 @@ public class RecordActivity extends Activity implements SensorEventListener {
     }
 
     @Override
-    public void onSensorChanged(SensorEvent sensorEvent) {
-        int sensorType = sensorEvent.sensor.getType();
+    public void onSensorChanged(SensorEvent event) {
 
-        switch (sensorType) {
-            case Sensor.TYPE_ACCELEROMETER:
-                mAccelerometerData = sensorEvent.values.clone();
-                break;
-            case Sensor.TYPE_MAGNETIC_FIELD:
-                mMagnetometerData = sensorEvent.values.clone();
-                break;
-            default:
-                return;
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            System.arraycopy(event.values, 0, accelerometerReading,
+                    0, accelerometerReading.length);
+            accelerometer_ts = event.timestamp;
+        } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            System.arraycopy(event.values, 0, magnetometerReading,
+                    0, magnetometerReading.length);
+            magnetometer_ts = event.timestamp;
         }
 
-        float[] rotationMatrix = new float[9];
-        boolean rotationOk = SensorManager.getRotationMatrix(rotationMatrix,
-                null, mAccelerometerData, mMagnetometerData);
-
-        float orientationValues[] = new float[3];
-
-        if (rotationOk) {
-            SensorManager.getOrientation(rotationMatrix, orientationValues);
-
-            double z = orientationValues[0] * TO_DEGREES;
-            double x = orientationValues[1] * TO_DEGREES;
-            double y = orientationValues[2] * TO_DEGREES;
+        if (accelerometer_ts == magnetometer_ts) {
+            sensors_ts = (System.currentTimeMillis() - SystemClock.elapsedRealtime()) * 1000000
+                    + accelerometer_ts;
+            updateOrientationAngles();
 
             if (recording)
-                recordData(sensorEvent.timestamp, x, y, z, position);
+                recordData(sensors_ts, orientationAngles[1], orientationAngles[2],
+                        orientationAngles[0], position);
 
-            zAxisLabel.setText("Z: " + String.valueOf(z));
-            xAxisLabel.setText("X: " + String.valueOf(x));
-            yAxisLabel.setText("Y: " + String.valueOf(y));
+            updateScreen();
         }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+        // Nothing to do here
+    }
+
+    private void updateScreen() {
+
+        double azimuth = orientationAngles[0];
+        double pitch = orientationAngles[1];
+        double roll = orientationAngles[2];
+
+        final String z = "Z: " + azimuth;
+        final String x = "X: " + pitch;
+        final String y = "Y: " + roll + "\n" + sensors_ts;
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                zAxisLabel.setText(z);
+                xAxisLabel.setText(x);
+                yAxisLabel.setText(y);
+            }
+        });
+    }
+
+    public void updateOrientationAngles() {
+        SensorManager.getRotationMatrix(rotationMatrix, null,
+                accelerometerReading, magnetometerReading);
+        SensorManager.getOrientation(rotationMatrix, orientationAngles);
+
+        orientationAngles[0] = 180 + (float) Math.toDegrees(orientationAngles[0]);
+        orientationAngles[1] = 90 + (float) Math.toDegrees(orientationAngles[1]);
+        orientationAngles[2] = (float) Math.toDegrees(orientationAngles[2]);
     }
 
     private void recordData(long timestamp, double x, double y, double z, int position) {
 
-        String str = String.valueOf(timestamp) + "," +
-                String.valueOf(x) + "," +
-                String.valueOf(y) + "," +
-                String.valueOf(z) + "," +
-                String.valueOf(position) + "\n";
+        String str = timestamp + "," +
+                x + "," +
+                y + "," +
+                z + "," +
+                position + "\n";
 
         if (os != null)
             try {
                 os.write(str.getBytes());
             } catch (IOException e) {
-                Log.e("RecordActivity", e.getMessage());
+                Log.e(TAG, e.getMessage());
             }
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        mSensorManager.registerListener(this,
-                mAccelerometerSensor, SENSOR_DELAY_MICROS);
-        mSensorManager.registerListener(this,
-                mMagnetometerSensor, SENSOR_DELAY_MICROS);
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        mSensorManager.unregisterListener(this);
+    private void closeFiles() {
 
         if (os != null)
             try {
                 os.close();
             } catch (IOException e) {
-                Log.e("RecordActivity", e.getMessage());
+                Log.e(TAG, e.getMessage());
             }
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int i) {
+    protected void onResume() {
+        super.onResume();
 
+        mSensorManager.registerListener(this, mAccelerometerSensor,
+                SENSOR_DELAY);
+        mSensorManager.registerListener(this, mMagnetometerSensor,
+                SENSOR_DELAY);
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        mSensorManager.unregisterListener(this);
+        closeFiles();
+    }
+
 }

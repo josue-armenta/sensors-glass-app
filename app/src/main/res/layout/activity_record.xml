@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:keepScreenOn="true"
     android:orientation="vertical"
     tools:context=".RecordActivity">
@@ -10,28 +10,32 @@
     <TextView
         android:id="@+id/pointPosition"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        tools:text="Point" />
 
     <TextView
         android:id="@+id/txtZ"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        tools:text="Z" />
 
     <TextView
         android:id="@+id/txtX"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        tools:text="X" />
 
     <TextView
         android:id="@+id/txtY"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        tools:text="Y" />
 
     <TextView
-        android:visibility="invisible"
         android:id="@+id/recording"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Recording..." />
+        android:text="Recording..."
+        android:visibility="invisible" />
 
 </LinearLayout>

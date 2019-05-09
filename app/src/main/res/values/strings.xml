@@ -2,4 +2,6 @@
     <string name="app_name">Sensores</string>
     <string name="title_activity_main">Hello World Immersion</string>
     <string name="hello_world">Hello world!</string>
+    <string name="open_record">Open Record</string>
+    <string name="point_position">S%1$d</string>
 </resources>

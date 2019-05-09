@@ -38,7 +38,12 @@ public class MainActivity extends Activity {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 Intent intent = new Intent(MainActivity.this, RecordActivity.class);
-                intent.putExtra(RecordActivity.POINT_POSITION, i);
+
+                if (i == mCards.size() - 1)
+                    intent.putExtra(RecordActivity.POINT_POSITION, RecordActivity.OPEN_RECORD);
+                else
+                    intent.putExtra(RecordActivity.POINT_POSITION, i);
+
                 startActivity(intent);
             }
         });
@@ -49,13 +54,16 @@ public class MainActivity extends Activity {
         mCards = new ArrayList<>();
 
         String[] points = {"windshield", "central rearview mirror",
-                "left rearview mirror", "right rearview mirror", "radio"};
+                "left rearview mirror", "right rearview mirror", "dashboard", "radio", "copilot"};
 
         for (int i = 0; i < points.length; i++) {
             mCards.add(new CardBuilder(this, CardBuilder.Layout.TEXT)
                     .setText("Record " + points[i] + " coordinates")
-                    .setFootnote("S" + String.valueOf(i)));
+                    .setFootnote("S" + i));
         }
+
+        mCards.add(new CardBuilder(this, CardBuilder.Layout.TEXT)
+                .setText("Record trip"));
     }
 
     private class ExampleCardScrollAdapter extends CardScrollAdapter {
