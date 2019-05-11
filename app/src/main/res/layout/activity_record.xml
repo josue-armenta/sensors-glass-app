@@ -14,12 +14,6 @@
         tools:text="Point" />
 
     <TextView
-        android:id="@+id/txtZ"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        tools:text="Z" />
-
-    <TextView
         android:id="@+id/txtX"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
