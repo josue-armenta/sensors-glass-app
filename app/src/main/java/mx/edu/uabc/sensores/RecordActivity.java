@@ -1,19 +1,15 @@
 package mx.edu.uabc.sensores;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.TextView;
+
+import com.tinder.scarlet.Stream;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -22,6 +18,9 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+
+import mx.edu.uabc.sensores.clients.SensoresClient;
+import mx.edu.uabc.sensores.models.EventMessage;
 
 public class RecordActivity extends Activity implements Orientation.Listener {
 
@@ -59,20 +58,60 @@ public class RecordActivity extends Activity implements Orientation.Listener {
             pointPosition.setText(getString(R.string.point_position, position));
 
         mOrientation = new Orientation(this);
+        SensoresClient mSensoresClient = SensoresClient.getInstance();
+
+        mSensoresClient.observe().start(new Stream.Observer<EventMessage>() {
+            @Override
+            public void onNext(EventMessage eventMessage) {
+
+                Log.i("Event", "Type: " + eventMessage.getType() + ", Command: " + eventMessage.getCommand());
+
+                if (eventMessage.getType().equals("record")) {
+                    onKeyDown(KeyEvent.KEYCODE_DPAD_CENTER, null);
+                }
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+
+            }
+
+            @Override
+            public void onComplete() {
+
+            }
+        });
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+
             recording = !recording;
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    recordingLabel.setVisibility(recording ? View.VISIBLE : View.INVISIBLE);
+                }
+            });
 
             if (recording) {
 
                 File path = Environment
                         .getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
 
-                String fileName = new SimpleDateFormat("yyyyMMddHHmmss'.csv'",
+                String basename = new SimpleDateFormat("yyyyMMddHHmmss",
                         Locale.getDefault()).format(new Date());
+
+                String ext;
+
+                if (position == OPEN_RECORD)
+                    ext = "_trip.csv";
+                else
+                    ext = "_trn.csv";
+
+                String fileName = basename + ext;
 
                 File file = new File(path, fileName);
 
@@ -87,28 +126,33 @@ public class RecordActivity extends Activity implements Orientation.Listener {
 
                 }
 
-                recordingLabel.setVisibility(View.VISIBLE);
-
             } else {
-                recordingLabel.setVisibility(View.INVISIBLE);
                 closeFiles();
             }
-
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_BACK) {
             onBackPressed();
             return true;
         }
-
         return false;
     }
 
+
     private void recordData(long timestamp, double pitch, double roll, int position) {
 
-        String str = timestamp + "," +
-                pitch + "," +
-                roll + "," +
-                position + "\n";
+        String str;
+
+        if (position == OPEN_RECORD) {
+
+            str = timestamp + "," +
+                    pitch + "," +
+                    roll + "\n";
+        } else {
+
+            str = pitch + "," +
+                    roll + "," +
+                    position + "\n";
+        }
 
         if (os != null)
             try {

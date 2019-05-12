@@ -33,4 +33,7 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'com.github.tinder.scarlet:scarlet:0.1.7'
+    implementation "com.github.tinder.scarlet:scarlet-websocket-okhttp:0.1.7"
+    implementation "com.github.tinder.scarlet:scarlet-message-adapter-gson:0.1.7"
 }
